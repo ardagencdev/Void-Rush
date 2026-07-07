@@ -13,6 +13,12 @@ public class PlayerMovement : MonoBehaviour
     public float acceleration = 55f;
     public float deceleration = 75f;
     public float turnAcceleration = 90f;
+
+    [Header("Advanced Movement Feel")]
+    [Range(0.3f, 1f)] public float lowInputAccelerationMultiplier = 0.65f;
+    [Range(1f, 2f)] public float highInputAccelerationMultiplier = 1.15f;
+    [Range(0.5f, 2f)] public float sharpTurnBoost = 1.25f;
+
     [Range(0f, 0.5f)] public float minInputToMove = 0.03f;
 
     [Header("Combo")]
@@ -54,27 +60,14 @@ public class PlayerMovement : MonoBehaviour
 
         if (!GameStateManager.IsGameplayStarted || IsGameOver)
         {
-            SmoothStop();
+            SmoothStop(delta);
             return;
         }
 
         float currentSpeed = GetCurrentSpeed();
         Vector2 targetVelocity = moveInput * currentSpeed;
 
-        float accelRate;
-
-        if (moveInput.sqrMagnitude <= 0.001f)
-        {
-            accelRate = deceleration;
-        }
-        else if (currentVelocity.sqrMagnitude > 0.01f && Vector2.Dot(currentVelocity.normalized, moveInput.normalized) < 0.35f)
-        {
-            accelRate = turnAcceleration;
-        }
-        else
-        {
-            accelRate = acceleration;
-        }
+        float accelRate = GetAdaptiveAccelerationRate();
 
         currentVelocity = Vector2.MoveTowards(
             currentVelocity,
@@ -89,6 +82,43 @@ public class PlayerMovement : MonoBehaviour
         }
 
         rb.MovePosition(rb.position + currentVelocity * delta);
+    }
+
+    private float GetAdaptiveAccelerationRate()
+    {
+        if (moveInput.sqrMagnitude <= 0.001f)
+            return deceleration;
+
+        float inputMagnitude = Mathf.Clamp01(moveInput.magnitude);
+
+        float analogMultiplier = Mathf.Lerp(
+            lowInputAccelerationMultiplier,
+            highInputAccelerationMultiplier,
+            inputMagnitude
+        );
+
+        float baseAcceleration = acceleration * analogMultiplier;
+
+        if (currentVelocity.sqrMagnitude <= 0.01f)
+            return baseAcceleration;
+
+        Vector2 currentDirection = currentVelocity.normalized;
+        Vector2 targetDirection = moveInput.normalized;
+
+        float directionDot = Vector2.Dot(currentDirection, targetDirection);
+
+        if (directionDot < 0.35f)
+        {
+            float turnStrength = Mathf.InverseLerp(0.35f, -1f, directionDot);
+
+            return Mathf.Lerp(
+                baseAcceleration,
+                turnAcceleration * sharpTurnBoost,
+                turnStrength
+            );
+        }
+
+        return baseAcceleration;
     }
 
     private float GetCurrentSpeed()
@@ -154,11 +184,9 @@ public class PlayerMovement : MonoBehaviour
         UpdateFacing(moveInput.x);
     }
 
-    private void SmoothStop()
+    private void SmoothStop(float delta)
     {
         moveInput = Vector2.zero;
-
-        float delta = GetPlayerDeltaTime();
 
         currentVelocity = Vector2.MoveTowards(
             currentVelocity,

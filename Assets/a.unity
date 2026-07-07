@@ -21327,7 +21327,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -75, y: 75}
+  m_AnchoredPosition: {x: -100, y: 100}
   m_SizeDelta: {x: 350, y: 350}
   m_Pivot: {x: 1, y: 0}
 --- !u!114 &1318913967
@@ -27251,11 +27251,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1058027815251072158, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
       propertyPath: deceleration
-      value: 95
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 1058027815251072158, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
       propertyPath: minInputToMove
-      value: 0.04
+      value: 0.03
       objectReference: {fileID: 0}
     - target: {fileID: 1058027815251072158, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
       propertyPath: gameStateManager
@@ -27331,7 +27331,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4065927315343198356, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
       propertyPath: inputCurve
-      value: 1.05
+      value: 0.85
       objectReference: {fileID: 0}
     - target: {fileID: 4065927315343198356, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
       propertyPath: joystickBG
@@ -27345,6 +27345,18 @@ PrefabInstance:
       propertyPath: joystickHandle
       value: 
       objectReference: {fileID: 489789883}
+    - target: {fileID: 4065927315343198356, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
+      propertyPath: inputSmoothTime
+      value: 0.02
+      objectReference: {fileID: 0}
+    - target: {fileID: 4065927315343198356, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
+      propertyPath: handleFollowSpeed
+      value: 30
+      objectReference: {fileID: 0}
+    - target: {fileID: 4065927315343198356, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
+      propertyPath: enableDynamicJoystick
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4425609496846381732, guid: a3b86c7ac7ebfc74d9e6f4d7dfa87922, type: 3}
       propertyPath: destroyAfterFade
       value: 1

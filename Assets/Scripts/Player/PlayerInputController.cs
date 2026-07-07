@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.EnhancedTouch;
 
 public class PlayerInputController : MonoBehaviour
 {
@@ -16,12 +17,25 @@ public class PlayerInputController : MonoBehaviour
     [Range(0.5f, 2f)] public float inputCurve = 0.85f;
     public float inputSmoothTime = 0.035f;
     public float handleReturnSpeed = 22f;
+    public float handleFollowSpeed = 28f;
+
+    [Header("Advanced Joystick Feel")]
+    [Range(0.7f, 1.6f)] public float finalInputCurve = 1.1f;
+    [Range(0f, 0.35f)] public float predictionStrength = 0.12f;
+    [Range(0f, 0.08f)] public float inputBufferTime = 0.035f;
+    public float dynamicRangeExtra = 25f;
+
+    [Header("Dynamic Joystick")]
+    public bool enableDynamicJoystick = true;
+    public float dynamicCenterFollowSpeed = 18f;
+    public float dynamicMaxCenterOffset = 45f;
 
     private enum ControlSource
     {
         None,
         Touch,
-        Mouse
+        Mouse,
+        Keyboard
     }
 
     private ControlSource controlSource = ControlSource.None;
@@ -30,27 +44,76 @@ public class PlayerInputController : MonoBehaviour
     private int activeTouchId = -1;
 
     private Vector2 joystickStartPos;
+    private Vector2 joystickCenterScreenPos;
+
     private Vector2 rawInput;
+    private Vector2 processedInput;
     private Vector2 smoothInput;
     private Vector2 inputSmoothVelocity;
+
+    private Vector2 previousRawInput;
+    private Vector2 bufferedInput;
+    private float lastInputTime;
+
+    private Vector2 targetHandlePosition;
+    private Vector2 visualHandlePosition;
+
+    private Vector2 originalBGAnchoredPosition;
+    private Vector2 targetBGAnchoredPosition;
+
+    private Camera uiCamera;
 
     private void Awake()
     {
         if (playerMovement == null)
             playerMovement = GetComponent<PlayerMovement>();
 
+        RefreshJoystickBasePosition();
+
+        uiCamera = GetUICamera();
+
         ResetHandleInstant();
+    }
+
+    public void RefreshJoystickBasePosition()
+    {
+        if (joystickBG == null) return;
+
+        originalBGAnchoredPosition = joystickBG.anchoredPosition;
+        targetBGAnchoredPosition = originalBGAnchoredPosition;
+        joystickBG.anchoredPosition = originalBGAnchoredPosition;
+
+        ResetHandleInstant();
+    }
+
+    private void OnEnable()
+    {
+        EnhancedTouchSupport.Enable();
+        RefreshJoystickBasePosition();
+    }
+
+    private void OnDisable()
+    {
+        ForceStopInput();
     }
 
     private void Update()
     {
         if (playerMovement == null) return;
 
+        if (!isTouching && joystickBG != null)
+        {
+            originalBGAnchoredPosition = joystickBG.anchoredPosition;
+            targetBGAnchoredPosition = originalBGAnchoredPosition;
+        }
+
         if (Time.timeScale == 0f || playerMovement.IsGameOver)
         {
             ForceStopInput();
             return;
         }
+
+        rawInput = Vector2.zero;
 
         HandleTouchInput();
         HandleMouseInput();
@@ -59,26 +122,28 @@ public class PlayerInputController : MonoBehaviour
         {
             rawInput = GetKeyboardInput();
 
-            smoothInput = Vector2.SmoothDamp(
-                smoothInput,
-                rawInput,
-                ref inputSmoothVelocity,
-                inputSmoothTime,
-                Mathf.Infinity,
-                Time.unscaledDeltaTime
-            );
-
-            playerMovement.SetMoveInput(smoothInput);
-
-            if (joystickHandle != null)
-            {
-                joystickHandle.anchoredPosition = Vector2.Lerp(
-                    joystickHandle.anchoredPosition,
-                    Vector2.zero,
-                    handleReturnSpeed * Time.unscaledDeltaTime
-                );
-            }
+            if (rawInput.sqrMagnitude > 0.001f)
+                controlSource = ControlSource.Keyboard;
+            else if (controlSource == ControlSource.Keyboard)
+                controlSource = ControlSource.None;
         }
+
+        processedInput = ProcessFinalInput(rawInput);
+
+        smoothInput = Vector2.SmoothDamp(
+            smoothInput,
+            processedInput,
+            ref inputSmoothVelocity,
+            inputSmoothTime,
+            Mathf.Infinity,
+            Time.unscaledDeltaTime
+        );
+
+        playerMovement.SetMoveInput(smoothInput);
+
+        UpdateJoystickVisual();
+
+        previousRawInput = rawInput;
     }
 
     private Vector2 GetKeyboardInput()
@@ -101,30 +166,28 @@ public class PlayerInputController : MonoBehaviour
         if (Touchscreen.current == null) return;
         if (controlSource == ControlSource.Mouse) return;
 
-        foreach (var touch in Touchscreen.current.touches)
+        foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
         {
-            int touchId = touch.touchId.ReadValue();
-            Vector2 touchPos = touch.position.ReadValue();
+            int touchId = touch.touchId;
+            Vector2 touchPos = touch.screenPosition;
 
-            if (controlSource == ControlSource.None && touch.press.wasPressedThisFrame)
+            if (controlSource == ControlSource.None && touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
             {
                 if (IsPointerInsideJoystick(touchPos))
-                {
-                    controlSource = ControlSource.Touch;
-                    activeTouchId = touchId;
-                    isTouching = true;
-                    joystickStartPos = touchPos;
-                }
+                    BeginJoystick(ControlSource.Touch, touchId, touchPos);
             }
 
             if (controlSource == ControlSource.Touch && touchId == activeTouchId)
             {
-                if (touch.press.isPressed)
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Moved ||
+                    touch.phase == UnityEngine.InputSystem.TouchPhase.Stationary ||
+                    touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
                 {
-                    HandleJoystickInput(touchPos);
+                    ReadJoystickInput(touchPos);
                 }
 
-                if (touch.press.wasReleasedThisFrame || !touch.press.isPressed)
+                if (touch.phase == UnityEngine.InputSystem.TouchPhase.Ended ||
+                    touch.phase == UnityEngine.InputSystem.TouchPhase.Canceled)
                 {
                     ReleaseJoystick();
                 }
@@ -132,6 +195,9 @@ public class PlayerInputController : MonoBehaviour
                 return;
             }
         }
+
+        if (controlSource == ControlSource.Touch)
+            ReleaseJoystick();
     }
 
     private void HandleMouseInput()
@@ -144,17 +210,13 @@ public class PlayerInputController : MonoBehaviour
             Vector2 mousePos = Mouse.current.position.ReadValue();
 
             if (IsPointerInsideJoystick(mousePos))
-            {
-                controlSource = ControlSource.Mouse;
-                isTouching = true;
-                joystickStartPos = mousePos;
-            }
+                BeginJoystick(ControlSource.Mouse, -1, mousePos);
         }
 
         if (controlSource == ControlSource.Mouse && Mouse.current.leftButton.isPressed)
         {
             Vector2 mousePos = Mouse.current.position.ReadValue();
-            HandleJoystickInput(mousePos);
+            ReadJoystickInput(mousePos);
         }
 
         if (controlSource == ControlSource.Mouse && Mouse.current.leftButton.wasReleasedThisFrame)
@@ -163,17 +225,62 @@ public class PlayerInputController : MonoBehaviour
         }
     }
 
-    private void HandleJoystickInput(Vector2 currentScreenPos)
+    private void BeginJoystick(ControlSource source, int touchId, Vector2 screenPos)
     {
-        Vector2 direction = currentScreenPos - joystickStartPos;
-        Vector2 normalizedInput = Vector2.ClampMagnitude(direction / joystickRange, 1f);
+        controlSource = source;
+        activeTouchId = touchId;
+        isTouching = true;
+
+        joystickStartPos = screenPos;
+        joystickCenterScreenPos = screenPos;
+
+        previousRawInput = Vector2.zero;
+        bufferedInput = Vector2.zero;
+        lastInputTime = Time.unscaledTime;
+
+        RefreshJoystickBasePosition();
+    }
+
+    private void ReadJoystickInput(Vector2 currentScreenPos)
+    {
+        if (enableDynamicJoystick)
+            UpdateDynamicJoystickCenter(currentScreenPos);
+
+        Vector2 direction = currentScreenPos - joystickCenterScreenPos;
+
+        float currentRange = joystickRange;
+
+        if (dynamicRangeExtra > 0f && direction.magnitude > joystickRange)
+        {
+            float maxRange = joystickRange + dynamicRangeExtra;
+            float rangeT = Mathf.InverseLerp(joystickRange, maxRange, direction.magnitude);
+            currentRange = Mathf.Lerp(joystickRange, maxRange, rangeT);
+        }
+
+        Vector2 normalizedInput = Vector2.ClampMagnitude(direction / currentRange, 1f);
 
         rawInput = ApplyScaledRadialDeadZone(normalizedInput);
+        targetHandlePosition = rawInput * joystickRange;
+    }
 
-        playerMovement.SetMoveInput(rawInput);
+    private void UpdateDynamicJoystickCenter(Vector2 currentScreenPos)
+    {
+        Vector2 fromCenterToFinger = currentScreenPos - joystickCenterScreenPos;
+        float distance = fromCenterToFinger.magnitude;
 
-        if (joystickHandle != null)
-            joystickHandle.anchoredPosition = rawInput * joystickRange;
+        if (distance <= joystickRange)
+            return;
+
+        Vector2 overflowDirection = fromCenterToFinger.normalized;
+        float overflowDistance = distance - joystickRange;
+
+        Vector2 desiredCenterScreenPos = joystickCenterScreenPos + overflowDirection * overflowDistance;
+        Vector2 maxOffsetFromStart = Vector2.ClampMagnitude(
+            desiredCenterScreenPos - joystickStartPos,
+            dynamicMaxCenterOffset
+        );
+
+        joystickCenterScreenPos = joystickStartPos + maxOffsetFromStart;
     }
 
     private Vector2 ApplyScaledRadialDeadZone(Vector2 input)
@@ -189,17 +296,119 @@ public class PlayerInputController : MonoBehaviour
         return input.normalized * scaledMagnitude;
     }
 
+    private Vector2 ProcessFinalInput(Vector2 input)
+    {
+        Vector2 result = input;
+
+        if (isTouching || controlSource == ControlSource.Mouse)
+        {
+            result = ApplyInputPrediction(result);
+            result = ApplyInputBuffer(result);
+        }
+
+        result = ApplyFinalInputCurve(result);
+
+        return Vector2.ClampMagnitude(result, 1f);
+    }
+
+    private Vector2 ApplyInputPrediction(Vector2 input)
+    {
+        if (predictionStrength <= 0f)
+            return input;
+
+        Vector2 inputDelta = input - previousRawInput;
+        Vector2 predictedInput = input + inputDelta * predictionStrength;
+
+        return Vector2.ClampMagnitude(predictedInput, 1f);
+    }
+
+    private Vector2 ApplyInputBuffer(Vector2 input)
+    {
+        if (inputBufferTime <= 0f)
+            return input;
+
+        if (input.sqrMagnitude > 0.001f)
+        {
+            bufferedInput = input;
+            lastInputTime = Time.unscaledTime;
+            return input;
+        }
+
+        if (isTouching && Time.unscaledTime - lastInputTime <= inputBufferTime)
+            return bufferedInput;
+
+        return Vector2.zero;
+    }
+
+    private Vector2 ApplyFinalInputCurve(Vector2 input)
+    {
+        float magnitude = input.magnitude;
+
+        if (magnitude <= 0.001f)
+            return Vector2.zero;
+
+        float curvedMagnitude = Mathf.Pow(magnitude, finalInputCurve);
+
+        return input.normalized * curvedMagnitude;
+    }
+
+    private void UpdateJoystickVisual()
+    {
+        UpdateJoystickBGVisual();
+        UpdateJoystickHandleVisual();
+    }
+
+    private void UpdateJoystickBGVisual()
+    {
+        if (joystickBG == null) return;
+
+        if (!isTouching)
+        {
+            targetBGAnchoredPosition = originalBGAnchoredPosition;
+        }
+        else if (enableDynamicJoystick)
+        {
+            Vector2 centerOffsetScreen = joystickCenterScreenPos - joystickStartPos;
+            targetBGAnchoredPosition = originalBGAnchoredPosition + centerOffsetScreen;
+        }
+
+        joystickBG.anchoredPosition = Vector2.Lerp(
+            joystickBG.anchoredPosition,
+            targetBGAnchoredPosition,
+            dynamicCenterFollowSpeed * Time.unscaledDeltaTime
+        );
+    }
+
+    private void UpdateJoystickHandleVisual()
+    {
+        if (joystickHandle == null) return;
+
+        Vector2 targetPosition = isTouching ? targetHandlePosition : Vector2.zero;
+        float speed = isTouching ? handleFollowSpeed : handleReturnSpeed;
+
+        visualHandlePosition = Vector2.Lerp(
+            visualHandlePosition,
+            targetPosition,
+            speed * Time.unscaledDeltaTime
+        );
+
+        joystickHandle.anchoredPosition = visualHandlePosition;
+    }
+
     private void ReleaseJoystick()
     {
         controlSource = ControlSource.None;
         activeTouchId = -1;
         isTouching = false;
+
         rawInput = Vector2.zero;
+        processedInput = Vector2.zero;
+        targetHandlePosition = Vector2.zero;
+        previousRawInput = Vector2.zero;
+        bufferedInput = Vector2.zero;
 
-        smoothInput = Vector2.zero;
-        inputSmoothVelocity = Vector2.zero;
-
-        playerMovement.SetMoveInput(Vector2.zero);
+        joystickCenterScreenPos = joystickStartPos;
+        targetBGAnchoredPosition = originalBGAnchoredPosition;
     }
 
     private void ForceStopInput()
@@ -207,9 +416,17 @@ public class PlayerInputController : MonoBehaviour
         controlSource = ControlSource.None;
         activeTouchId = -1;
         isTouching = false;
+
         rawInput = Vector2.zero;
+        processedInput = Vector2.zero;
         smoothInput = Vector2.zero;
         inputSmoothVelocity = Vector2.zero;
+        targetHandlePosition = Vector2.zero;
+        visualHandlePosition = Vector2.zero;
+        previousRawInput = Vector2.zero;
+        bufferedInput = Vector2.zero;
+
+        targetBGAnchoredPosition = originalBGAnchoredPosition;
 
         playerMovement.SetMoveInput(Vector2.zero);
         ResetHandleInstant();
@@ -219,6 +436,9 @@ public class PlayerInputController : MonoBehaviour
     {
         if (joystickHandle != null)
             joystickHandle.anchoredPosition = Vector2.zero;
+
+        visualHandlePosition = Vector2.zero;
+        targetHandlePosition = Vector2.zero;
     }
 
     private bool IsPointerInsideJoystick(Vector2 screenPos)
@@ -228,7 +448,23 @@ public class PlayerInputController : MonoBehaviour
         return RectTransformUtility.RectangleContainsScreenPoint(
             joystickBG,
             screenPos,
-            null
+            uiCamera
         );
+    }
+
+    private Camera GetUICamera()
+    {
+        if (joystickBG == null)
+            return null;
+
+        Canvas canvas = joystickBG.GetComponentInParent<Canvas>();
+
+        if (canvas == null)
+            return null;
+
+        if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+
+        return canvas.worldCamera;
     }
 }
