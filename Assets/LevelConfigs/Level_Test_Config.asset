@@ -1,0 +1,142 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42f5a7d7fe7c1fe4ab826884abb3d161, type: 3}
+  m_Name: Level_Test_Config
+  m_EditorClassIdentifier: Assembly-CSharp::LevelConfig
+  levelNumber: 0
+  levelName: Test Level
+  showTutorial: 0
+  tutorialTitle: LEVEL BRIEFING
+  tutorialPages:
+  - Tutorial text...
+  winScore: 100
+  showGameTimerHUD: 1
+  playerMoveSpeed: 7
+  playerComboSpeedBonus: 1.2
+  dashEnabled: 1
+  cloneEnabled: 1
+  dashDistance: 2.5
+  dashDuration: 0.12
+  dashCooldown: 2
+  cloneDuration: 3
+  cloneEnemiesToDistract: 2
+  cloneCooldown: 8
+  cloneUses: 1
+  armorImmuneDuration: 1
+  slowMultiplier: 0.4
+  slowDuration: 5
+  comboEnabled: 1
+  comboTimeLimit: 1.5
+  maxCombo: 3
+  comboSpeedStages:
+  - comboMultiplier: 2
+    coinsRequired: 2
+    playerSpeedMultiplier: 1.25
+  - comboMultiplier: 3
+    coinsRequired: 5
+    playerSpeedMultiplier: 1.5
+  nearStarsColor: {r: 1, g: 1, b: 1, a: 1}
+  nearStarsSpeedMultiplier: 1
+  nearStarsSizeMultiplier: 1
+  nearStarsEmissionRate: 30
+  coinSpawnInterval: 1
+  maxCoinCount: 8
+  normalCoinChance: 70
+  goldCoinChance: 25
+  rareCoinChance: 5
+  normalCoinValue: 1
+  goldCoinValue: 2
+  rareCoinValue: 3
+  normalCoinEnabled: 1
+  goldCoinEnabled: 1
+  rareCoinEnabled: 1
+  obstacleSpawnMode: 0
+  levelObstacles:
+  - prefab: {fileID: 4509020153673322666, guid: afedeaabd585710449580ef5dbb3e1bc, type: 3}
+    enabled: 0
+  - prefab: {fileID: 1982787718258633688, guid: 3146b88f91c051d47b5fddc85a0e1d31, type: 3}
+    enabled: 0
+  - prefab: {fileID: 4507725915358148117, guid: 5f848fa623177b64780c532f94c62ca5, type: 3}
+    enabled: 0
+  - prefab: {fileID: 4509020153673322666, guid: d23829af5521ab941a37283f497b4699, type: 3}
+    enabled: 1
+  - prefab: {fileID: 4509020153673322666, guid: ee42b4b96eb85ff48878f26ebcb46f55, type: 3}
+    enabled: 0
+  - prefab: {fileID: 1198742668289528155, guid: a1835203bad3bd848865e7a8a38f1e4c, type: 3}
+    enabled: 0
+  - prefab: {fileID: 5815721319752824181, guid: 06b667b5b68c53a488fd94752c69f0dd, type: 3}
+    enabled: 1
+  randomObstacleCount: 5
+  normalEnemyCount: 1
+  normalEnemySpawnInterval: 2.5
+  normalMinStartSpeed: 1.5
+  normalMaxStartSpeed: 2.5
+  normalMaxSpeed: 7
+  normalSpeedIncreaseRate: 0.1
+  projectileEnemyCount: 1
+  projectileEnemySpawnInterval: 5
+  projectileMoveSpeed: 3
+  projectileStoppingDistance: 7
+  projectileRetreatDistance: 4
+  projectileFireRate: 1.5
+  projectileSpeed: 6
+  hunterEnemyCount: 1
+  hunterEnemySpawnInterval: 8
+  hunterRepositionTime: 1.2
+  hunterWarningDuration: 1
+  hunterChargeSpeed: 15
+  hunterStunDuration: 1
+  bossEnabled: 1
+  bossSpawnScore: 75
+  bossSpeed: 4.5
+  bossCanSplit: 1
+  bossSplitDelay: 0.8
+  bossSplitDistance: 1.2
+  miniBossSpeed: 4.5
+  beaconEnemyCount: 1
+  beaconMinSpawnTime: 3
+  beaconMaxSpawnTime: 15
+  beaconBuffDuration: 15
+  beaconBuffSizeMultiplier: 1.25
+  beaconNormalSpeedMultiplier: 1.3
+  beaconNormalMaxSpeedMultiplier: 1.2
+  beaconProjectileMoveMultiplier: 1.2
+  beaconProjectileShotMultiplier: 1.25
+  beaconProjectileFireMultiplier: 1.25
+  beaconHunterRepositionMultiplier: 0.8
+  beaconHunterWarningMultiplier: 0.8
+  beaconHunterChargeMultiplier: 1.25
+  beaconHunterStunMultiplier: 0.8
+  armorEnabled: 1
+  slowEnabled: 1
+  armorMinSpawnTime: 15
+  armorMaxSpawnTime: 30
+  slowMinSpawnTime: 8
+  slowMaxSpawnTime: 20
+  verticalLaserEnabled: 0
+  verticalLaserMinSpawnTime: 8
+  verticalLaserMaxSpawnTime: 25
+  verticalLaserWarningDuration: 2
+  verticalLaserLifeTime: 1.5
+  verticalLaserWidth: 5.5
+  verticalLaserHeightExtra: 1
+  horizontalLaserEnabled: 1
+  horizontalLaserMinSpawnTime: 8
+  horizontalLaserMaxSpawnTime: 25
+  horizontalLaserWarningDuration: 2
+  horizontalLaserLifeTime: 1.5
+  horizontalLaserWidth: 5.5
+  horizontalLaserWidthExtra: 1
+  bombTrapEnabled: 1
+  bombMinSpawnTime: 6
+  bombMaxSpawnTime: 14
+  maxBombCount: 3
